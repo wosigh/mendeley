@@ -309,6 +309,8 @@ void fetchFile(file_t *file) {
 	struct MemoryStruct header;
 	struct MemoryStruct response;
 
+  char *params[1];
+  params[0] = file->id;
 
   asprintf(&url, "http://api.mendeley.com/oapi/library/documents/%s/file/%s", file->id, file->hash);
 	
@@ -330,12 +332,17 @@ void fetchFile(file_t *file) {
 	free(header.data);
 	
   cleanup:
+  
+  // Notify JS that the download task is complete, one way or the other.
+  PDL_CallJS("downloadComplete", params, 1);
+
 	free(url);
 	free(file->id);
 	free(file->hash);
 	free(file->path);
 	free(file);
     free(req_url);
+
   	
 }
 

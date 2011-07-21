@@ -19,7 +19,8 @@ enyo.kind({
 			kind: 'Mendeley.Plugin',
 			onPluginReady: 'pluginReady',
 			onPushDocument: 'pushDocument',
-			onSetLibrarySize: 'setLibrarySize'
+			onSetLibrarySize: 'setLibrarySize',
+			onDownloadComplete: 'downloadComplete'
 		},
 		{
 			kind: "Popup2",
@@ -349,7 +350,10 @@ enyo.kind({
 			this.$.paper.$.fav.addClass('favNo')
 		}*/
 
-		if (info.files && info.files.length>0)
+    // TODO: Add an extra icon to indicate that Mendeley knows about a pdf,
+    // but that we don't have it locally yet...?
+    // For now, only display the pdf icon if we actually have it
+		if (info._localFile && info.files && info.files.length>0)
 			this.$.paper.$.pdf.addClass('pdfYes')
 		else
 			this.$.paper.$.pdf.addClass('pdfNo')
@@ -541,6 +545,32 @@ enyo.kind({
 		this.warn(data)
 	},
 
+  // When a file finishes downloading, the plugin calls this.
+  downloadComplete: function(inSender, fileid) {
+    var index = this.myLibKeys[fileid]
+    var info = this.myLibrary[index]
+    if (info && info.files && (info.files.length > 0) && info.files[0])
+    {
+      // For now, have single flag for has-file.
+      // We don't support multiple files ATM anyway, so keeping this simple.
+      var path = this.filenameForReference(info)
+
+      // Hmm, I can't make call to plugin to perform hash-check in callback initiated /from/
+      // the plugin.  Guess the plugin should just send us status...
+      //if (this.$.plugin.checkFile(info.id, info.files[0].file_hash, path).retVal == 0)
+      //  info._localFile = path
+      //else
+      //  delete info._localFile
+
+      // For now, assume it worked
+      info._localFile = path
+
+      // Update the GUI...
+      this.$.viewLibrary.data = this.myLibrary
+      this.$.viewLibrary.refresh()
+    }
+  },
+
 	updateLibView: function() {
 		this.$.views.setShowing(true)
 		var libLen = 0
@@ -608,12 +638,16 @@ enyo.kind({
         // This path isn't unique per-file (not a function of iteration variable 'i')
         // and as such if we have multiple files, this will do weird things.
         // Maybe just download the first file for a reference or something?
-        var path = data['_localFile'] = this.filenameForReference(data)
+        var path = this.filenameForReference(data)
 
         // Fetch the file if it doesn't exist or hash fails.
         var checkResponse = this.$.plugin.checkFile(data.id, data.files[i].file_hash, path)
-        if (checkResponse.retVal == 0)
+        if (checkResponse.retVal != 1) {
           this.$.plugin.fetchFile(data.id, data.files[i].file_hash, path)
+          delete data._localFile
+        }
+        else
+          data._localFile = path
       }
     }
 		this.myLibrary.push(data)
@@ -622,7 +656,7 @@ enyo.kind({
 		if (this.myLibrary.length==this.libraryTotalResults) {
 			this.myLibrary.sort(enyo.bind(this, 'sortByYear'))
 			for (i in this.myLibrary)
-				this.myLibKeys[this.myLibrary.id] = i
+				this.myLibKeys[this.myLibrary[i].id] = i
 			this.prefs.set('library',this.myLibrary)
 			this.prefs.set('libraryKeys',this.myLibKeys)
 			this.$.viewLibrary.data = this.myLibrary

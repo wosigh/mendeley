@@ -6,7 +6,8 @@ enyo.kind({
 	events: {
 		onPluginReady:'',
 		onPushDocument:'',
-		onSetLibrarySize:''
+		onSetLibrarySize:'',
+    onDownloadComplete:''
 	},
 
 	initComponents: function() {
@@ -25,6 +26,7 @@ enyo.kind({
   		this.log('~~~~~ Mendeley Plugin Ready ~~~~~')
   		this.$.plugin.addCallback('pushDocument', enyo.bind(this, 'doPushDocument'), true)
   		this.$.plugin.addCallback('setLibrarySize', enyo.bind(this, 'doSetLibrarySize'))
+  		this.$.plugin.addCallback('downloadComplete', enyo.bind(this, 'doDownloadComplete'))
   		this.doPluginReady()
   	},
   	pluginConnected: function(inSender, inResponse, inRequest) {
